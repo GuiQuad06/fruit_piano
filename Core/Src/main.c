@@ -381,7 +381,7 @@ int __io_putchar(int ch)
 	uint8_t c[1];
 	c[0] = ch & 0xFF;
 
-	HAL_UART_Transmit(&huart2, &*c, 1, 10);
+	HAL_UART_Transmit(&huart2, &c[0], 1, 10);
 
 	return ch;
 }
