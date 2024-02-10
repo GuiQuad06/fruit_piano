@@ -67,24 +67,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	// If on
 	if((GPIOA->ODR & GPIO_PIN_5) == GPIO_PIN_5)
 	{
-		// Light off, PWM off
+		// Light off, ADC off, PWM off
 		GPIOA->BSRR = GPIO_PIN_5 << 16;
-		for (uint8_t i = 0; i <= 0xC ; i+=0x4)
-		{
-			// 440Hz Stop Tone
-			HAL_TIM_PWM_Stop(&htim2, i);
-		}
+		HAL_ADC_Stop(&hadc1);
+		HAL_TIM_PWM_Stop(&htim2, 0x00);
 	}
 	// If off
 	else
 	{
-		// Light on, PWM on
+		// Light on, ADC on
 		GPIOA->BSRR = GPIO_PIN_5;
-		for (uint8_t i = 0; i <= 0xC ; i+=0x4)
-		{
-			// 440Hz Start Tone
-			HAL_TIM_PWM_Start(&htim2, i);
-		}
+		HAL_ADC_Start(&hadc1);
 	}
 }
 /* USER CODE END 0 */
@@ -122,16 +115,22 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   printf("Coucou Hibou\n");
-  HAL_ADC_Start(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // 440Hz Stop Tone
+    HAL_TIM_PWM_Stop(&htim2, 0x00);
 	read_adc = HAL_ADC_GetValue(&hadc1);
-	printf("DR: 0x%2x\n", (unsigned int)read_adc);
-	for (uint32_t i = 0 ; i < 10000000; i++);
+
+	if (read_adc < 0x750)
+	{
+		// 440Hz Start Tone
+		HAL_TIM_PWM_Start(&htim2, 0x00);
+	}
+	for (uint32_t i = 0 ; i < 100; i++);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
