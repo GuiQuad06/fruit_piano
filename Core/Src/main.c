@@ -26,12 +26,18 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct {
+	const char name[4];        /** Name of the Note to be played*/
+	uint32_t period;           /** Period of the note (and so the frequency*/
+	uint16_t *fruit;           /** DMA destination Address for ADC data*/
+	uint16_t size;             /** Data size in Half-Word*/
+} note_t ;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BUFFER_FRUIT_SIZE    (3u) // 6 channels x 16 bits
+#define BUFFER_FRUIT_SIZE       (3u) // 6 channels x 16 bits
+#define CONTACT_THRESHOLD    (0x750)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,7 +65,7 @@ static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void init_result(uint32_t * buffer, uint32_t size);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -91,7 +97,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  uint32_t read_adc;
+  init_result(result, BUFFER_FRUIT_SIZE);
+
+  uint16_t tmp;
+
+  note_t notes[] = {
+		  {"DO", (119-1), (uint16_t*)result, 1},
+		  {"RE", (106-1), (uint16_t*)result+1, 1},
+		  {"MI", (94-1), (uint16_t*)result+2, 1},
+		  {"FA", (89-1), (uint16_t*)result+3, 1}
+  };
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -124,14 +139,23 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // 440Hz Stop Tone
+    // Stop Tone
     HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 
-	if (read_adc < 0x750)
-	{
-		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-	}
-	for (uint32_t i = 0 ; i < 100; i++);
+    for (uint32_t i = 0; i < 4; i++)
+    {
+    	tmp = *(notes[i].fruit);
+    	if (tmp < CONTACT_THRESHOLD) // Si on actionne un fruit (une note ^^)
+    	{
+    		// Set & Start PWM as square signal
+    		TIM2->ARR = notes[i].period;
+    		TIM2->CCR1 = notes[i].period / 2;
+    		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+    		printf("%s\n", notes[i].name);
+    	}
+    }
+
+	for (uint32_t i = 0 ; i < 100000; i++);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -434,6 +458,14 @@ int __io_putchar(int ch)
 	HAL_UART_Transmit(&huart2, &c[0], 1, 10);
 
 	return ch;
+}
+
+static void init_result(uint32_t * buffer, uint32_t size)
+{
+	for (uint32_t i = 0; i < size; i++)
+	{
+		buffer[i] = 0x800;
+	}
 }
 /* USER CODE END 4 */
 
