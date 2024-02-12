@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BUFFER_FRUIT_SIZE    (3u) // 6 channels x 16 bits
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,7 +48,7 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+uint32_t result[BUFFER_FRUIT_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -66,20 +66,20 @@ static void MX_ADC1_Init(void);
 /* USER CODE BEGIN 0 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	// If on
+	// If "on state"
 	if((GPIOA->ODR & GPIO_PIN_5) == GPIO_PIN_5)
 	{
-		// Light off, ADC off, PWM off
+		// Light off, PWM off, ADC off
 		GPIOA->BSRR = GPIO_PIN_5 << 16;
-		HAL_ADC_Stop(&hadc1);
 		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+		HAL_ADC_Stop_DMA(&hadc1);
 	}
-	// If off
+	// If "off state"
 	else
 	{
 		// Light on, ADC on
 		GPIOA->BSRR = GPIO_PIN_5;
-		HAL_ADC_Start(&hadc1);
+		HAL_ADC_Start_DMA(&hadc1, result, sizeof(result));
 	}
 }
 /* USER CODE END 0 */
@@ -126,11 +126,9 @@ int main(void)
   {
     // 440Hz Stop Tone
     HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-	read_adc = HAL_ADC_GetValue(&hadc1);
 
 	if (read_adc < 0x750)
 	{
-		// 440Hz Start Tone
 		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 	}
 	for (uint32_t i = 0 ; i < 100; i++);
