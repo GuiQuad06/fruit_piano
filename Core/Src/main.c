@@ -72,7 +72,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		// Light off, ADC off, PWM off
 		GPIOA->BSRR = GPIO_PIN_5 << 16;
 		HAL_ADC_Stop(&hadc1);
-		HAL_TIM_PWM_Stop(&htim2, 0x00);
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 	}
 	// If off
 	else
@@ -125,13 +125,13 @@ int main(void)
   while (1)
   {
     // 440Hz Stop Tone
-    HAL_TIM_PWM_Stop(&htim2, 0x00);
+    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 	read_adc = HAL_ADC_GetValue(&hadc1);
 
 	if (read_adc < 0x750)
 	{
 		// 440Hz Start Tone
-		HAL_TIM_PWM_Start(&htim2, 0x00);
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 	}
 	for (uint32_t i = 0 ; i < 100; i++);
     /* USER CODE END WHILE */
