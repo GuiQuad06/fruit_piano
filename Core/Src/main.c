@@ -450,6 +450,11 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief Retarget printf to UART2
+ * @param ch: character to be printed
+ * @retval character printed
+*/
 int __io_putchar(int ch)
 {
 	uint8_t c[1];
@@ -460,6 +465,11 @@ int __io_putchar(int ch)
 	return ch;
 }
 
+/**
+ * @brief Initialize the result buffer
+ * @param buffer: pointer to the buffer
+ * @param size: size of the buffer
+*/
 static void init_result(uint32_t * buffer, uint32_t size)
 {
 	for (uint32_t i = 0; i < size; i++)
