@@ -56,7 +56,6 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint32_t result[BUFFER_FRUIT_SIZE];
-uint8_t on_state_flag = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,7 +67,6 @@ static void MX_TIM2_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 static void init_result(uint32_t * buffer, uint32_t size);
-static void process_state(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -78,12 +76,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	// If "on state"
 	if((GPIOA->ODR & GPIO_PIN_5) == GPIO_PIN_5)
 	{
-      on_state_flag = 0;
+		// Light off, PWM off, ADC off
+		GPIOA->BSRR = GPIO_PIN_5 << 16;
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+		HAL_ADC_Stop_DMA(&hadc1);
 	}
 	// If "off state"
 	else
 	{
-      on_state_flag = 1;
+		// Light on, ADC on
+		GPIOA->BSRR = GPIO_PIN_5;
+		HAL_ADC_Start_DMA(&hadc1, result, sizeof(result));
 	}
 }
 /* USER CODE END 0 */
@@ -142,8 +145,6 @@ int main(void)
   {
     // Stop Tone
     HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-
-    process_state();
 
     for (uint32_t i = 0; i < NB_NOTES; i++)
     {
@@ -488,26 +489,6 @@ static void init_result(uint32_t * buffer, uint32_t size)
 	{
 		buffer[i] = 0x800;
 	}
-}
-
-/**
- * @brief Process the state of the system
-*/
-static void process_state(void)
-{
-  if (on_state_flag == 0)
-  {
-    // Light off, PWM off, ADC off
-    GPIOA->BSRR = GPIO_PIN_5 << 16;
-    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-    HAL_ADC_Stop_DMA(&hadc1);
-  }
-  else
-  {
-    // Light on, ADC on
-    GPIOA->BSRR = GPIO_PIN_5;
-    HAL_ADC_Start_DMA(&hadc1, result, sizeof(result));
-  }
 }
 /* USER CODE END 4 */
 
