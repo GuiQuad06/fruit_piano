@@ -36,9 +36,8 @@ typedef struct {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BUFFER_FRUIT_SIZE       (3u) // 6 channels x 16 bits
 #define CONTACT_THRESHOLD    (0x750)
-#define NB_NOTES                (7u)
+#define NB_NOTES                (7u) // 7 channels x 16 bits
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,7 +54,7 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint32_t result[BUFFER_FRUIT_SIZE];
+uint32_t result[NB_NOTES];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,7 +97,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  init_result(result, BUFFER_FRUIT_SIZE);
+  init_result(result, NB_NOTES);
 
   uint16_t tmp;
 
