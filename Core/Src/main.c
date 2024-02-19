@@ -442,8 +442,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
@@ -495,7 +495,7 @@ static void init_result(uint32_t * buffer, uint32_t size)
 */
 static void process_state(void)
 {
-  if (on_state_flag == 1)
+  if (on_state_flag == 0)
   {
     // Light off, PWM off, ADC off
     GPIOA->BSRR = GPIO_PIN_5 << 16;
