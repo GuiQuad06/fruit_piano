@@ -158,7 +158,7 @@ int main(void)
         }
     }
 
-	for (uint32_t i = 0 ; i < 100000; i++);
+	for (uint32_t i = 0 ; i < 10000; i++);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
