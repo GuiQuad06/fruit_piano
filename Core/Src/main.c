@@ -78,7 +78,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		// Light off, PWM off, ADC off
 		GPIOA->BSRR = GPIO_PIN_5 << 16;
-		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
 		HAL_ADC_Stop_DMA(&hadc1);
 	}
 	// If "off state"
@@ -144,19 +144,19 @@ int main(void)
   while (1)
   {
     // Stop Tone
-    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
 
     for (uint32_t i = 0; i < NB_NOTES; i++)
     {
-    	tmp = *(notes[i].fruit);
-    	if (tmp < CONTACT_THRESHOLD) // Si on actionne un fruit (une note ^^)
-    	{
-    		// Set & Start PWM as square signal
-    		TIM2->ARR = notes[i].period;
-    		TIM2->CCR1 = notes[i].period / 2;
-    		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-    		printf("%s\n", notes[i].name);
-    	}
+        tmp = *(notes[i].fruit);
+        if (tmp < CONTACT_THRESHOLD) // Si on actionne un fruit (une note ^^)
+        {
+            // Set & Start PWM as square signal
+            TIM2->ARR = notes[i].period;
+            TIM2->CCR1 = notes[i].period / 2;
+            HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+            printf("%s\n", notes[i].name);
+        }
     }
 
 	for (uint32_t i = 0 ; i < 100000; i++);
