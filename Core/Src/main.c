@@ -26,12 +26,18 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct {
+	const char name[4];        /** Name of the Note to be played*/
+	uint32_t period;           /** Period of the note (and so the frequency*/
+	uint16_t *fruit;           /** DMA destination Address for ADC data*/
+	uint16_t size;             /** Data size in Half-Word*/
+} note_t ;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define CONTACT_THRESHOLD    (0x750)
+#define NB_NOTES                (7u) // 7 channels x 16 bits
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -40,48 +46,46 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+uint32_t result[NB_NOTES];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void init_result(uint32_t * buffer, uint32_t size);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	// If on
+	// If "on state"
 	if((GPIOA->ODR & GPIO_PIN_5) == GPIO_PIN_5)
 	{
-		// Light off, PWM off
+		// Light off, PWM off, ADC off
 		GPIOA->BSRR = GPIO_PIN_5 << 16;
-		for (uint8_t i = 0; i <= 0xC ; i+=0x4)
-		{
-			// 440Hz Stop Tone
-			HAL_TIM_PWM_Stop(&htim2, i);
-		}
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
+		HAL_ADC_Stop_DMA(&hadc1);
 	}
-	// If off
+	// If "off state"
 	else
 	{
-		// Light on, PWM on
+		// Light on, ADC on
 		GPIOA->BSRR = GPIO_PIN_5;
-		for (uint8_t i = 0; i <= 0xC ; i+=0x4)
-		{
-			// 440Hz Start Tone
-			HAL_TIM_PWM_Start(&htim2, i);
-		}
+		HAL_ADC_Start_DMA(&hadc1, result, sizeof(result));
 	}
 }
 /* USER CODE END 0 */
@@ -93,7 +97,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  init_result(result, NB_NOTES);
 
+  uint16_t tmp;
+
+  note_t notes[] = {
+		  {"DO", (119-1), (uint16_t*)result, 1},
+		  {"RE", (106-1), (uint16_t*)result+1, 1},
+		  {"MI", (94-1), (uint16_t*)result+2, 1},
+		  {"FA", (89-1), (uint16_t*)result+3, 1},
+		  {"SOL", (80-1), (uint16_t*)result+4, 1},
+		  {"LA", (71-1), (uint16_t*)result+5, 1},
+		  {"SI", (63-1), (uint16_t*)result+6, 1}
+  };
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -114,8 +130,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   printf("Coucou Hibou\n");
   /* USER CODE END 2 */
@@ -124,6 +142,23 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // Stop Tone
+    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
+
+    for (uint32_t i = 0; i < NB_NOTES; i++)
+    {
+        tmp = *(notes[i].fruit);
+        if (tmp < CONTACT_THRESHOLD) // Si on actionne un fruit (une note ^^)
+        {
+            // Set & Start PWM as square signal
+            TIM2->ARR = notes[i].period;
+            TIM2->CCR1 = notes[i].period / 2;
+            HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+            printf("%s\n", notes[i].name);
+        }
+    }
+
+	for (uint32_t i = 0 ; i < 10000; i++);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -139,6 +174,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -167,6 +203,113 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV8;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Common config
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 7;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Rank = ADC_REGULAR_RANK_4;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_7;
+  sConfig.Rank = ADC_REGULAR_RANK_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_9;
+  sConfig.Rank = ADC_REGULAR_RANK_6;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_14;
+  sConfig.Rank = ADC_REGULAR_RANK_7;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -191,7 +334,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 1024-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 142-1;
+  htim2.Init.Period = 119-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -214,22 +357,10 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 71;
+  sConfigOC.Pulse = 59;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -274,6 +405,22 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -295,8 +442,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
@@ -315,14 +462,32 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief Retarget printf to UART2
+ * @param ch: character to be printed
+ * @retval character printed
+*/
 int __io_putchar(int ch)
 {
 	uint8_t c[1];
 	c[0] = ch & 0xFF;
 
-	HAL_UART_Transmit(&huart2, &*c, 1, 10);
+	HAL_UART_Transmit(&huart2, &c[0], 1, 10);
 
 	return ch;
+}
+
+/**
+ * @brief Initialize the result buffer
+ * @param buffer: pointer to the buffer
+ * @param size: size of the buffer
+*/
+static void init_result(uint32_t * buffer, uint32_t size)
+{
+	for (uint32_t i = 0; i < size; i++)
+	{
+		buffer[i] = 0x800;
+	}
 }
 /* USER CODE END 4 */
 
