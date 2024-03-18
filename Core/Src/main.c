@@ -55,6 +55,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint32_t result[NB_NOTES];
+volatile uint8_t key_found = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -83,11 +84,37 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	// If "off state"
 	else
 	{
-		// Light on, ADC on
+		// Light on, PWM on, ADC on
 		GPIOA->BSRR = GPIO_PIN_5;
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
 		HAL_ADC_Start_DMA(&hadc1, result, sizeof(result));
 	}
 }
+
+/**
+ * @brief This function Start the Tone.
+ */
+__STATIC_INLINE void Start_Tone(void)
+{
+	uint16_t read_ccer;
+
+    read_ccer = TIM2->CCER;
+    read_ccer |= (TIM_CCER_CC3E);
+    TIM2->CCER = read_ccer;
+}
+
+/**
+ * @brief This function Stop the Tone.
+ */
+__STATIC_INLINE void Stop_Tone(void)
+{
+	uint32_t read_ccer;
+
+    read_ccer = TIM2->CCER;
+    read_ccer &= ~(TIM_CCER_CC3E);
+    TIM2->CCER = read_ccer;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -142,23 +169,31 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // Stop Tone
-    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
+    // Reset Flag
+    key_found = 0;
 
     for (uint32_t i = 0; i < NB_NOTES; i++)
     {
         tmp = *(notes[i].fruit);
+
         if (tmp < CONTACT_THRESHOLD) // Si on actionne un fruit (une note ^^)
         {
-            // Set & Start PWM as square signal
+            // Set PWM as square signal
             TIM2->ARR = notes[i].period;
             TIM2->CCR1 = notes[i].period / 2;
-            HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
-            printf("%s\n", notes[i].name);
+            Start_Tone();
+
+            //printf("%s\n", notes[i].name);
+            key_found = 1;
+            break;
         }
     }
+    if (!key_found)
+    {
+        Stop_Tone();
+    }
 
-	for (uint32_t i = 0 ; i < 10000; i++);
+	for (uint32_t i = 0 ; i < 1000; i++);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
